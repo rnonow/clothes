@@ -263,7 +263,7 @@
 <script>
 // ===== 更新チェック =====
 // ホーム画面アプリは古い画面を持ち続けることがあるので、開くたびに version.json を確認する
-const APP_VERSION = '202611241352';
+const APP_VERSION = '202611241353';
 async function checkUpdate(manual = false) {
   try {
     const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -584,8 +584,14 @@ function garmentSVG(it) {
 }
 function mannequinHTML(list, { large = false } = {}) {
   const byCat = {};
-  for (const it of list) if (!byCat[it.category]) byCat[it.category] = it;
-  if (byCat.onepiece) { delete byCat.tops; delete byCat.bottoms; }
+  // 同じカテゴリが複数あるときは、あとから選んだ服を着せる
+  for (const it of list) byCat[it.category] = it;
+  // ワンピースと上下は、あとから選んだほうを優先
+  if (byCat.onepiece) {
+    const pos = it => list.lastIndexOf(it);
+    const op = pos(byCat.onepiece), tb = Math.max(byCat.tops ? pos(byCat.tops) : -1, byCat.bottoms ? pos(byCat.bottoms) : -1);
+    if (op > tb) { delete byCat.tops; delete byCat.bottoms; } else delete byCat.onepiece;
+  }
   const slots = Object.entries(byCat).map(([cat, it]) => {
     const p = SLOTS[cat]; if (!p) return '';
     return `<div class="slot ${it.photo ? 'photo' : ''}" style="left:${p.l}%;top:${p.t}%;width:${p.w}%;height:${p.h}%;z-index:${p.z}">${it.photo ? `<img src="${it.photo}" alt="">` : garmentSVG(it)}</div>`;
@@ -644,7 +650,16 @@ function renderOutfitPicker() {
 }
 $('#oGrid').onclick = e => {
   const card = e.target.closest('.item'); if (!card) return;
-  const id = card.dataset.id; oSelected.has(id) ? oSelected.delete(id) : oSelected.add(id);
+  const id = card.dataset.id;
+  if (oSelected.has(id)) oSelected.delete(id);
+  else {
+    // 1点しか着られないカテゴリは、同じカテゴリの服と入れ替える
+    const cat = items.find(x => x.id === id)?.category;
+    const single = ['tops', 'bottoms', 'onepiece', 'outer', 'shoes'];
+    const clash = c => c === cat || (cat === 'onepiece' && (c === 'tops' || c === 'bottoms')) || (c === 'onepiece' && (cat === 'tops' || cat === 'bottoms'));
+    if (single.includes(cat)) for (const sid of [...oSelected]) { const c = items.find(x => x.id === sid)?.category; if (single.includes(c) && clash(c)) oSelected.delete(sid); }
+    oSelected.add(id);
+  }
   renderOutfitPicker();
 };
 function openOutfitForm(id = null, preset = null) {

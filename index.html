@@ -82,6 +82,12 @@
   .look .strip { flex: 1; flex-wrap: wrap; overflow: visible; align-content: flex-start; }
   .mq { position: relative; flex: none; width: 150px; aspect-ratio: 1 / 2; background: linear-gradient(#faf7f3, #f1ebe4); border-radius: 12px; overflow: hidden; }
   .mq.lg { width: min(220px, 60vw); margin: 0 auto 12px; }
+  /* コーデ作成中はマネキンを上に固定して、服を選びながら確認できるようにする */
+  #oPreview { position: sticky; top: -18px; z-index: 6; background: #fff; margin: -18px -18px 10px; padding: 10px 18px 8px;
+              border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: center; }
+  #oPreview .mq { width: 92px; margin: 0; }
+  #oPreview .sel { flex: 1; font-size: 12px; color: var(--sub); line-height: 1.6; }
+  #oPreview .sel b { color: var(--ink); }
   .mq svg.body { position: absolute; inset: 0; width: 100%; height: 100%; }
   .mq .slot { position: absolute; display: flex; align-items: center; justify-content: center; }
   .mq .slot img { width: 100%; height: 100%; object-fit: contain; }
@@ -263,7 +269,7 @@
 <script>
 // ===== 更新チェック =====
 // ホーム画面アプリは古い画面を持ち続けることがあるので、開くたびに version.json を確認する
-const APP_VERSION = '202611241353';
+const APP_VERSION = '202611241356';
 async function checkUpdate(manual = false) {
   try {
     const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -646,7 +652,9 @@ function renderOutfitPicker() {
   $('#oGrid').innerHTML = list.length ? list.map(it => itemCardHTML(it, { selectable: true, selected: oSelected.has(it.id) })).join('')
     : `<div class="empty" style="grid-column:1/-1;padding:20px">服がありません</div>`;
   $('#oCount').textContent = oSelected.size;
-  $('#oPreview').innerHTML = mannequinHTML([...oSelected].map(id => items.find(x => x.id === id)).filter(Boolean), { large: true });
+  const selItems = [...oSelected].map(id => items.find(x => x.id === id)).filter(Boolean);
+  $('#oPreview').innerHTML = mannequinHTML(selItems) +
+    `<div class="sel"><b>着ている服</b><br>${selItems.length ? selItems.map(it => esc(it.name || catOf(it.category).label)).join('<br>') : '下から服を選んでください'}</div>`;
 }
 $('#oGrid').onclick = e => {
   const card = e.target.closest('.item'); if (!card) return;

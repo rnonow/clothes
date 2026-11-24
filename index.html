@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2f2a26">
+<meta http-equiv="Cache-Control" content="no-cache">
 <title>マイクローゼット</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
@@ -184,6 +185,11 @@
       </div>
     </div>
     <div class="panel">
+      <div class="section-title" style="margin-top:0">アプリの更新</div>
+      <p class="muted">バージョン <span id="appVer"></span>。新しい版があれば開いたときに自動で更新されます。</p>
+      <div class="row" style="justify-content:flex-start"><button class="btn ghost" id="updateBtn">最新版を確認</button></div>
+    </div>
+    <div class="panel">
       <div class="section-title" style="margin-top:0">お試し</div>
       <p class="muted">動きを確認したいときは、サンプルの服を入れられます。</p>
       <div class="row" style="justify-content:flex-start">
@@ -255,6 +261,22 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ===== 更新チェック =====
+// ホーム画面アプリは古い画面を持ち続けることがあるので、開くたびに version.json を確認する
+const APP_VERSION = '202611241348';
+async function checkUpdate(manual = false) {
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    const { version } = await r.json();
+    // すでにこの版を読み込もうとした後なら、ループしないよう再読み込みしない
+    if (version && version !== APP_VERSION && !location.search.includes('v=' + version)) {
+      toast('新しい版に更新します');
+      setTimeout(() => location.replace(location.pathname + '?v=' + version), 600);
+    } else if (manual) toast('最新版です');
+  } catch { if (manual) toast('確認できませんでした(オフライン?)'); }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+
 // ===== 定数 =====
 const CATEGORIES = [
   { id: 'tops', label: 'トップス', icon: '👕' },
@@ -775,6 +797,10 @@ function renderBodyPreview() { $('#bodyPreview').innerHTML = mannequinHTML([]).r
   chipGroup($('#bType'), BODY_TYPES, { value: b.bodyType, onChange: v => update({ bodyType: v }) });
   renderBodyPreview();
 })();
+
+$('#appVer').textContent = APP_VERSION;
+$('#updateBtn').onclick = () => checkUpdate(true);
+checkUpdate();
 
 function renderAll() { renderCloset(); renderOutfits(); renderStats(); }
 

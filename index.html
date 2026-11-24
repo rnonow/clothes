@@ -182,14 +182,6 @@
       </div>
     </div>
     <div class="panel">
-      <div class="section-title" style="margin-top:0">URLから取り込み</div>
-      <p class="muted">商品ページを読み取るサーバーのURLです。設定方法はリポジトリの worker/README.md にあります。</p>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="readerUrl" inputmode="url" placeholder="https://closet-reader.xxxx.workers.dev" style="flex:1;min-width:0">
-        <button class="btn ghost" id="readerSave" style="flex:none">保存</button>
-      </div>
-    </div>
-    <div class="panel">
       <div class="section-title" style="margin-top:0">バックアップ</div>
       <p class="muted">データはこのブラウザの中だけに保存されています。ブラウザのデータを消すと失われるので、ときどき書き出しておくと安心です。</p>
       <div class="row" style="justify-content:flex-start">
@@ -226,12 +218,12 @@
   <div class="modal">
     <h2 id="itemModalTitle">服を登録</h2>
     <div class="field" id="importBox">
-      <label class="lb">ネットで買った服なら、商品ページのURLから取り込めます</label>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="iUrl" inputmode="url" placeholder="https://… 商品ページのURLを貼り付け" style="flex:1;min-width:0">
-        <button class="btn ghost" id="iImport" style="flex:none">取り込む</button>
+      <label class="lb">ネットで買った服なら、商品ページの文字をコピーして貼ると自動で入力します</label>
+      <textarea id="iPaste" placeholder="商品名・ブランド・カラー・価格などが書かれた部分をまとめてコピーして貼り付け(商品画像を貼り付けると写真になります)"></textarea>
+      <div class="row" style="justify-content:space-between;align-items:center;margin-top:6px">
+        <span class="muted" id="importMsg" style="font-size:12px;flex:1"></span>
+        <button class="btn ghost" id="iImport" style="flex:none">読み取る</button>
       </div>
-      <div class="muted" id="importMsg" style="font-size:12px;margin-top:4px"></div>
     </div>
     <div class="field">
       <div class="photo-box" id="photoBox"><span style="font-size:32px">📷</span>タップして写真を選ぶ / 撮る</div>
@@ -285,7 +277,7 @@
 <script>
 // ===== 更新チェック =====
 // ホーム画面アプリは古い画面を持ち続けることがあるので、開くたびに version.json を確認する
-const APP_VERSION = '202611241413';
+const APP_VERSION = '202611241416';
 async function checkUpdate(manual = false) {
   try {
     const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -526,7 +518,7 @@ function openItemForm(id = null) {
   $('#iName').value = it?.name || ''; $('#iBrand').value = it?.brand || ''; $('#iNote').value = it?.note || '';
   iCat.set(it?.category || 'tops'); iColor.set(it?.color || null); iSeason.set(it?.seasons || []);
   $('#iDelete').style.visibility = it ? 'visible' : 'hidden';
-  $('#iUrl').value = ''; $('#importMsg').textContent = ''; $('#importBox').style.display = it ? 'none' : '';
+  $('#iPaste').value = ''; $('#importMsg').textContent = ''; $('#importBox').style.display = it ? 'none' : '';
   openModal('#itemModal');
 }
 $('#addBtn').onclick = () => openItemForm();
@@ -842,15 +834,7 @@ $('#appVer').textContent = APP_VERSION;
 $('#updateBtn').onclick = () => checkUpdate(true);
 checkUpdate();
 
-// ===== URLから取り込み =====
-const READER_KEY = 'closet-reader-url';
-const getReader = () => (localStorage.getItem(READER_KEY) || '').replace(/\/+$/, '');
-$('#readerUrl').value = getReader();
-$('#readerSave').onclick = () => {
-  const v = $('#readerUrl').value.trim();
-  if (v && !/^https:\/\//.test(v)) { toast('https:// から始まるURLを入れてください'); return; }
-  localStorage.setItem(READER_KEY, v); toast('保存しました');
-};
+// ===== 商品ページの文字から取り込み(外部サービスは使わない) =====
 // 商品名などからカテゴリと色を推測する(外れたら手で直せる)
 const CAT_WORDS = [
   ['onepiece', ['ワンピース', 'ドレス', 'dress', 'オールインワン', 'サロペット', 'ジャンプスーツ']],
@@ -887,39 +871,50 @@ function guess(words, text) {
   }
   return best;
 }
-async function importFromUrl() {
-  const msg = $('#importMsg');
-  const url = $('#iUrl').value.trim();
-  const reader = getReader();
-  if (!/^https?:\/\//.test(url)) { msg.textContent = '商品ページのURL(https://…)を貼り付けてください'; return; }
-  if (!reader) { msg.textContent = '先に設定タブの「URLから取り込み」で読み取りサーバーを設定してください'; return; }
-  const btn = $('#iImport'); btn.disabled = true; msg.textContent = '読み取り中…';
-  try {
-    const r = await fetch(`${reader}/?url=${encodeURIComponent(url)}`);
-    const d = await r.json();
-    if (!r.ok || d.error) throw new Error(d.error || '読み取りに失敗しました');
-    const filled = [];
-    if (d.name) { $('#iName').value = d.name; filled.push('名前'); }
-    if (d.brand) { $('#iBrand').value = d.brand; filled.push('ブランド'); }
-    const cat = guess(CAT_WORDS, [d.category, d.name].join(' '));
-    if (cat) { iCat.set(cat); filled.push('カテゴリ'); }
-    const col = guess(COLOR_WORDS, d.color) || guess(COLOR_WORDS, d.name);
-    if (col) { iColor.set(col); filled.push('色'); }
-    const note = [d.price && `価格: ${d.price}`, `購入元: ${d.site || ''} ${d.url}`].filter(Boolean).join('\n');
-    $('#iNote').value = [$('#iNote').value.trim(), note].filter(Boolean).join('\n');
-    if (d.image) {
-      try {
-        const ir = await fetch(`${reader}/img?url=${encodeURIComponent(d.image)}`);
-        if (!ir.ok) throw 0;
-        pendingPhoto = await resizeImage(await ir.blob()); setPhotoBox(pendingPhoto); filled.push('写真');
-      } catch { /* 写真が取れなくても他の項目は使う */ }
-    }
-    msg.textContent = filled.length ? `${filled.join('・')}を入れました。違うところは直してから保存してください。` : '情報が見つかりませんでした。手で入力してください。';
-  } catch (e) {
-    msg.textContent = `${e.message || '読み取りに失敗しました'}。このサイトは読み取れないかもしれません。手で入力してください。`;
-  } finally { btn.disabled = false; }
+function parsePasted(text) {
+  const lines = text.split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const all = lines.join('\n');
+  const label = (re) => { for (const l of lines) { const m = l.match(re); if (m && m[1].trim()) return m[1].trim(); } return ''; };
+  const out = {};
+  out.url = all.match(/https?:\/\/[^\s<>"']+/)?.[0] || '';
+  out.brand = label(/^(?:ブランド|ブランド名|brand)\s*[:：]?\s*(.+)$/i);
+  out.color = label(/^(?:カラー|色|color|colour)\s*[:：]?\s*(.+)$/i);
+  out.size = label(/^(?:サイズ|size)\s*[:：]?\s*(.+)$/i);
+  out.material = label(/^(?:素材|材質|material)\s*[:：]?\s*(.+)$/i);
+  out.price = all.match(/[¥￥]\s?[\d,]{3,}|[\d,]{3,}\s?円/)?.[0]?.replace(/\s/g, '') || '';
+  // 商品名:ラベル行・URL・価格だけの行を除き、服の種類を表す語を含む行を優先
+  const skip = l => /^(?:ブランド|カラー|色|サイズ|素材|材質|価格|税込|送料|品番|商品番号|brand|color|size|price)/i.test(l)
+    || /^https?:\/\//.test(l) || /^[¥￥\d,.\s円（）()税込]+$/.test(l) || l.length < 3 || l.length > 90;
+  const cand = lines.filter(l => !skip(l));
+  out.name = cand.find(l => guess(CAT_WORDS, l)) || cand[0] || '';
+  // 「ブランド名 商品名」の形で1行目がブランドだけの場合
+  if (!out.brand && cand.length > 1 && cand[0] !== out.name && cand[0].length <= 30 && !guess(CAT_WORDS, cand[0])) out.brand = cand[0];
+  return out;
 }
-$('#iImport').onclick = importFromUrl;
+function importFromText() {
+  const msg = $('#importMsg');
+  const text = $('#iPaste').value.trim();
+  if (!text) { msg.textContent = '商品ページの文字をコピーして貼り付けてください'; return; }
+  const d = parsePasted(text), filled = [];
+  if (d.name) { $('#iName').value = d.name; filled.push('名前'); }
+  if (d.brand) { $('#iBrand').value = d.brand; filled.push('ブランド'); }
+  const cat = guess(CAT_WORDS, d.name) || guess(CAT_WORDS, text);
+  if (cat) { iCat.set(cat); filled.push('カテゴリ'); }
+  const col = guess(COLOR_WORDS, d.color) || guess(COLOR_WORDS, d.name);
+  if (col) { iColor.set(col); filled.push('色'); }
+  const note = [d.color && `カラー: ${d.color}`, d.size && `サイズ: ${d.size}`, d.material && `素材: ${d.material}`, d.price && `価格: ${d.price}`, d.url && `購入元: ${d.url}`].filter(Boolean);
+  if (note.length) { $('#iNote').value = [$('#iNote').value.trim(), ...note].filter(Boolean).join('\n'); filled.push('メモ'); }
+  msg.textContent = filled.length ? `${filled.join('・')}を入れました。違うところは直してください。` : '読み取れませんでした。手で入力してください。';
+  if (!pendingPhoto) msg.textContent += ' 写真は商品画像を保存して下の写真の枠から選ぶか、ここに画像を貼り付けてください。';
+}
+$('#iImport').onclick = importFromText;
+// 商品画像をコピーして貼り付けたら写真にする
+$('#iPaste').addEventListener('paste', async e => {
+  const file = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'))?.getAsFile();
+  if (!file) return;
+  e.preventDefault();
+  try { pendingPhoto = await resizeImage(file); setPhotoBox(pendingPhoto); $('#importMsg').textContent = '写真を入れました'; } catch { toast('画像を読み込めませんでした'); }
+});
 
 function renderAll() { renderCloset(); renderOutfits(); renderStats(); }
 

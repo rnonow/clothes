@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f2a26">
+<title>マイクローゼット</title>
+<style>
+  :root {
+    --bg: #f7f4ef; --card: #fff; --ink: #2f2a26; --sub: #7a716a; --line: #e6e0d8;
+    --accent: #b5654a; --accent-soft: #f3e3dc; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+         background: var(--bg); color: var(--ink); padding-bottom: 76px; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--ink); color: #fff; padding: 14px 16px;
+           display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .05em; }
+  header .count { font-size: 12px; opacity: .75; }
+  main { max-width: 960px; margin: 0 auto; padding: 14px; }
+  nav.tabs { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--line);
+             display: flex; z-index: 10; padding-bottom: env(safe-area-inset-bottom); }
+  nav.tabs button { flex: 1; border: 0; background: none; padding: 10px 0 12px; font-size: 11px; color: var(--sub); cursor: pointer; }
+  nav.tabs button .ic { display: block; font-size: 20px; margin-bottom: 2px; }
+  nav.tabs button.active { color: var(--accent); font-weight: 700; }
+  .view { display: none; } .view.active { display: block; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  select, input[type=text], textarea { font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
+  textarea { width: 100%; min-height: 60px; }
+  .btn { font: inherit; border: 0; border-radius: 999px; padding: 10px 18px; cursor: pointer; background: var(--accent); color: #fff; font-weight: 600; }
+  .btn.ghost { background: var(--accent-soft); color: var(--accent); }
+  .btn.plain { background: #eee; color: var(--ink); }
+  .btn.danger { background: #fbe5e5; color: #b33; }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .item { background: var(--card); border-radius: var(--radius); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+          cursor: pointer; position: relative; border: 2px solid transparent; }
+  .item.selected { border-color: var(--accent); }
+  .item .ph { aspect-ratio: 1; background: #efe9e2; display: flex; align-items: center; justify-content: center; font-size: 42px; }
+  .item .ph img { width: 100%; height: 100%; object-fit: cover; }
+  .item .meta { padding: 8px 10px; }
+  .item .name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .sub { font-size: 11px; color: var(--sub); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); display: inline-block; flex: none; }
+  .check { position: absolute; top: 6px; right: 6px; background: var(--accent); color: #fff; border-radius: 50%; width: 24px; height: 24px;
+           display: none; align-items: center; justify-content: center; font-size: 14px; }
+  .item.selected .check { display: flex; }
+  .empty { text-align: center; color: var(--sub); padding: 48px 12px; line-height: 1.8; }
+  .fab { position: fixed; right: 18px; bottom: 88px; width: 56px; height: 56px; border-radius: 50%; font-size: 28px; padding: 0;
+         box-shadow: 0 4px 12px rgba(0,0,0,.2); z-index: 9; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; z-index: 20; align-items: flex-end; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #fff; width: 100%; max-width: 560px; max-height: 92vh; overflow: auto; border-radius: 18px 18px 0 0; padding: 18px; }
+  @media (min-width: 640px) { .modal-bg { align-items: center; } .modal { border-radius: 18px; } }
+  .modal h2 { margin: 0 0 14px; font-size: 17px; }
+  .field { margin-bottom: 14px; }
+  .field label.lb { display: block; font-size: 12px; color: var(--sub); margin-bottom: 6px; font-weight: 600; }
+  .field input[type=text], .field select { width: 100%; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .photo-box { aspect-ratio: 4/3; background: #efe9e2; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+               overflow: hidden; cursor: pointer; color: var(--sub); font-size: 14px; flex-direction: column; gap: 6px; }
+  .photo-box img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
+  .row.between { justify-content: space-between; }
+  .section-title { font-size: 14px; font-weight: 700; margin: 18px 0 10px; display: flex; justify-content: space-between; align-items: center; }
+  .outfit { background: #fff; border-radius: var(--radius); padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .outfit .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+  .outfit .title { font-weight: 700; }
+  .outfit .tags { font-size: 11px; color: var(--sub); }
+  .strip { display: flex; gap: 6px; overflow-x: auto; }
+  .strip .mini { flex: none; width: 76px; text-align: center; font-size: 10px; color: var(--sub); }
+  .strip .mini .ph { width: 76px; height: 76px; border-radius: 10px; background: #efe9e2; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 30px; }
+  .strip .mini img { width: 100%; height: 100%; object-fit: cover; }
+  .strip .mini div.n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+  .panel { background: #fff; border-radius: var(--radius); padding: 14px; margin-bottom: 14px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .stat { background: #fff; border-radius: 12px; padding: 12px; text-align: center; }
+  .stat b { display: block; font-size: 22px; }
+  .stat span { font-size: 11px; color: var(--sub); }
+  .muted { color: var(--sub); font-size: 13px; line-height: 1.7; }
+  .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px;
+           border-radius: 999px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; }
+  .toast.show { opacity: 1; }
+  .detail-img { width: 100%; max-height: 50vh; object-fit: contain; border-radius: 12px; background: #f3efe9; }
+  .kv { display: grid; grid-template-columns: 80px 1fr; gap: 6px 10px; font-size: 14px; margin: 12px 0; }
+  .kv dt { color: var(--sub); }
+  .kv dd { margin: 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>👗 マイクローゼット</h1>
+  <span class="count" id="headerCount"></span>
+</header>
+
+<main>
+  <!-- クローゼット -->
+  <section class="view active" id="view-closet">
+    <div class="filters">
+      <select id="fCat"></select>
+      <select id="fColor"></select>
+      <select id="fSeason"></select>
+      <select id="fSort">
+        <option value="new">新しい順</option>
+        <option value="worn">よく着る順</option>
+        <option value="unworn">あまり着ていない順</option>
+      </select>
+      <input type="text" id="fText" placeholder="名前・メモで検索" style="flex:1;min-width:120px">
+    </div>
+    <div class="grid" id="closetGrid"></div>
+    <button class="btn fab" id="addBtn" title="服を追加">＋</button>
+  </section>
+
+  <!-- コーデ -->
+  <section class="view" id="view-outfits">
+    <div class="row between" style="margin:0 0 12px">
+      <span class="muted">保存したコーディネート</span>
+      <button class="btn" id="newOutfitBtn">＋ コーデを作る</button>
+    </div>
+    <div id="outfitList"></div>
+  </section>
+
+  <!-- 提案 -->
+  <section class="view" id="view-suggest">
+    <div class="panel">
+      <div class="field">
+        <label class="lb">季節</label>
+        <div class="chips" id="sugSeason"></div>
+      </div>
+      <div class="field">
+        <label class="lb">アウターを含める</label>
+        <div class="chips" id="sugOuter"></div>
+      </div>
+      <div class="row" style="justify-content:flex-start">
+        <button class="btn" id="suggestBtn">🎲 コーデを提案して</button>
+      </div>
+    </div>
+    <div id="suggestResult"></div>
+  </section>
+
+  <!-- 設定 -->
+  <section class="view" id="view-settings">
+    <div class="stats" id="stats"></div>
+    <div class="panel">
+      <div class="section-title" style="margin-top:0">バックアップ</div>
+      <p class="muted">データはこのブラウザの中だけに保存されています。ブラウザのデータを消すと失われるので、ときどき書き出しておくと安心です。</p>
+      <div class="row" style="justify-content:flex-start">
+        <button class="btn ghost" id="exportBtn">書き出し(JSON)</button>
+        <button class="btn ghost" id="importBtn">読み込み</button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="section-title" style="margin-top:0">お試し</div>
+      <p class="muted">動きを確認したいときは、サンプルの服を入れられます。</p>
+      <div class="row" style="justify-content:flex-start">
+        <button class="btn plain" id="sampleBtn">サンプルを追加</button>
+        <button class="btn danger" id="wipeBtn">すべて削除</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button data-view="closet" class="active"><span class="ic">🧺</span>クローゼット</button>
+  <button data-view="outfits"><span class="ic">🧥</span>コーデ</button>
+  <button data-view="suggest"><span class="ic">✨</span>提案</button>
+  <button data-view="settings"><span class="ic">⚙️</span>設定</button>
+</nav>
+
+<!-- 服の登録・編集 -->
+<div class="modal-bg" id="itemModal">
+  <div class="modal">
+    <h2 id="itemModalTitle">服を登録</h2>
+    <div class="field">
+      <div class="photo-box" id="photoBox"><span style="font-size:32px">📷</span>タップして写真を選ぶ / 撮る</div>
+      <input type="file" id="photoInput" accept="image/*" hidden>
+    </div>
+    <div class="field"><label class="lb">名前</label><input type="text" id="iName" placeholder="例:白のオックスフォードシャツ"></div>
+    <div class="field"><label class="lb">カテゴリ</label><div class="chips" id="iCat"></div></div>
+    <div class="field"><label class="lb">色</label><div class="chips" id="iColor"></div></div>
+    <div class="field"><label class="lb">季節(複数可)</label><div class="chips" id="iSeason"></div></div>
+    <div class="field"><label class="lb">ブランド</label><input type="text" id="iBrand" placeholder="任意"></div>
+    <div class="field"><label class="lb">メモ</label><textarea id="iNote" placeholder="サイズ、購入時期など"></textarea></div>
+    <div class="row between">
+      <button class="btn danger" id="iDelete">削除</button>
+      <span style="display:flex;gap:8px">
+        <button class="btn plain" data-close>キャンセル</button>
+        <button class="btn" id="iSave">保存</button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- 服の詳細 -->
+<div class="modal-bg" id="detailModal">
+  <div class="modal" id="detailBody"></div>
+</div>
+
+<!-- コーデ作成 -->
+<div class="modal-bg" id="outfitModal">
+  <div class="modal">
+    <h2 id="outfitModalTitle">コーデを作る</h2>
+    <div class="field"><label class="lb">コーデ名</label><input type="text" id="oName" placeholder="例:休日のきれいめカジュアル"></div>
+    <div class="field"><label class="lb">季節</label><div class="chips" id="oSeason"></div></div>
+    <div class="field">
+      <label class="lb">服を選ぶ(<span id="oCount">0</span>点)</label>
+      <div class="filters"><select id="oCat"></select></div>
+      <div class="grid" id="oGrid" style="grid-template-columns:repeat(auto-fill,minmax(96px,1fr))"></div>
+    </div>
+    <div class="row between">
+      <button class="btn danger" id="oDelete">削除</button>
+      <span style="display:flex;gap:8px">
+        <button class="btn plain" data-close>キャンセル</button>
+        <button class="btn" id="oSave">保存</button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 定数 =====
+const CATEGORIES = [
+  { id: 'tops', label: 'トップス', icon: '👕' },
+  { id: 'bottoms', label: 'ボトムス', icon: '👖' },
+  { id: 'onepiece', label: 'ワンピース', icon: '👗' },
+  { id: 'outer', label: 'アウター', icon: '🧥' },
+  { id: 'shoes', label: '靴', icon: '👟' },
+  { id: 'bag', label: 'バッグ', icon: '👜' },
+  { id: 'accessory', label: '小物', icon: '🧢' },
+];
+const COLORS = [
+  { id: 'white', label: '白', hex: '#ffffff' }, { id: 'black', label: '黒', hex: '#222222' },
+  { id: 'gray', label: 'グレー', hex: '#9a9a9a' }, { id: 'navy', label: 'ネイビー', hex: '#1f2f57' },
+  { id: 'beige', label: 'ベージュ', hex: '#d9c4a3' }, { id: 'brown', label: 'ブラウン', hex: '#7a5232' },
+  { id: 'blue', label: 'ブルー', hex: '#4a7fc1' }, { id: 'green', label: 'グリーン', hex: '#5d8a5a' },
+  { id: 'red', label: 'レッド', hex: '#c6403a' }, { id: 'pink', label: 'ピンク', hex: '#e8a3b5' },
+  { id: 'yellow', label: 'イエロー', hex: '#e9c74a' }, { id: 'purple', label: 'パープル', hex: '#7d5ba6' },
+  { id: 'multi', label: '柄・マルチ', hex: 'linear-gradient(135deg,#e9c74a,#c6403a,#4a7fc1)' },
+];
+const SEASONS = [
+  { id: 'spring', label: '春' }, { id: 'summer', label: '夏' },
+  { id: 'autumn', label: '秋' }, { id: 'winter', label: '冬' },
+];
+const NEUTRALS = ['white', 'black', 'gray', 'navy', 'beige'];
+const catOf = id => CATEGORIES.find(c => c.id === id) || CATEGORIES[0];
+const colorOf = id => COLORS.find(c => c.id === id);
+const seasonLabel = ids => (ids || []).map(id => SEASONS.find(s => s.id === id)?.label).filter(Boolean).join('・');
+
+// ===== 保存(IndexedDB) =====
+const DB_NAME = 'my-closet', DB_VER = 1;
+let db;
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = () => {
+      const d = req.result;
+      if (!d.objectStoreNames.contains('items')) d.createObjectStore('items', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('outfits')) d.createObjectStore('outfits', { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function tx(store, mode, fn) {
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(store, mode);
+    const s = t.objectStore(store);
+    const r = fn(s);
+    t.oncomplete = () => resolve(r && r.result);
+    t.onerror = () => reject(t.error);
+  });
+}
+const getAll = store => tx(store, 'readonly', s => s.getAll());
+const put = (store, v) => tx(store, 'readwrite', s => s.put(v));
+const del = (store, id) => tx(store, 'readwrite', s => s.delete(id));
+const clear = store => tx(store, 'readwrite', s => s.clear());
+
+// ===== 状態 =====
+let items = [], outfits = [];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+async function load() {
+  items = await getAll('items');
+  outfits = await getAll('outfits');
+  renderAll();
+}
+
+// ===== ユーティリティ =====
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800); }
+function dotStyle(c) { if (!c) return ''; return c.hex.startsWith('linear') ? `background:${c.hex}` : `background:${c.hex}`; }
+function phHTML(item) { return item.photo ? `<img src="${item.photo}" alt="">` : catOf(item.category).icon; }
+function currentSeason() { const m = new Date().getMonth() + 1; return m >= 3 && m <= 5 ? 'spring' : m >= 6 && m <= 8 ? 'summer' : m >= 9 && m <= 11 ? 'autumn' : 'winter'; }
+function openModal(id) { $(id).classList.add('open'); }
+function closeModal(el) { el.closest('.modal-bg').classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => { if (e.target === bg || e.target.hasAttribute('data-close')) bg.classList.remove('open'); });
+});
+
+// 写真を縮小して保存容量を抑える
+function resizeImage(file, max = 800) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// チップ選択UI
+function chipGroup(el, options, { multi = false, value, render, onChange } = {}) {
+  let sel = multi ? new Set(value || []) : value;
+  function draw() {
+    el.innerHTML = options.map(o => {
+      const on = multi ? sel.has(o.id) : sel === o.id;
+      return `<button type="button" class="chip ${on ? 'on' : ''}" data-id="${o.id}">${render ? render(o) : esc(o.label)}</button>`;
+    }).join('');
+  }
+  el.onclick = e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const id = b.dataset.id;
+    if (multi) { sel.has(id) ? sel.delete(id) : sel.add(id); } else { sel = id; }
+    draw(); onChange && onChange(get());
+  };
+  const get = () => multi ? [...sel] : sel;
+  draw();
+  return { get, set(v) { sel = multi ? new Set(v || []) : v; draw(); } };
+}
+
+// ===== タブ =====
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav.tabs button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + b.dataset.view));
+  window.scrollTo(0, 0);
+});
+
+// ===== クローゼット一覧 =====
+function fillSelect(el, first, opts) { el.innerHTML = `<option value="">${first}</option>` + opts.map(o => `<option value="${o.id}">${o.label}</option>`).join(''); }
+fillSelect($('#fCat'), 'すべてのカテゴリ', CATEGORIES);
+fillSelect($('#fColor'), 'すべての色', COLORS);
+fillSelect($('#fSeason'), 'すべての季節', SEASONS);
+['#fCat', '#fColor', '#fSeason', '#fSort'].forEach(s => $(s).onchange = renderCloset);
+$('#fText').oninput = renderCloset;
+
+function itemCardHTML(it, { selectable = false, selected = false } = {}) {
+  const c = colorOf(it.color);
+  return `<div class="item ${selected ? 'selected' : ''}" data-id="${it.id}">
+    <div class="ph">${phHTML(it)}</div>
+    <div class="meta">
+      <div class="name">${esc(it.name || catOf(it.category).label)}</div>
+      <div class="sub">${c ? `<span class="dot" style="${dotStyle(c)}"></span>${c.label}` : ''}${!selectable ? ` · 着用${it.wornCount || 0}回` : ''}</div>
+    </div>
+    ${selectable ? '<span class="check">✓</span>' : ''}
+  </div>`;
+}
+
+function renderCloset() {
+  const cat = $('#fCat').value, color = $('#fColor').value, season = $('#fSeason').value, text = $('#fText').value.trim().toLowerCase();
+  let list = items.filter(it =>
+    (!cat || it.category === cat) && (!color || it.color === color) &&
+    (!season || (it.seasons || []).includes(season)) &&
+    (!text || [it.name, it.brand, it.note].join(' ').toLowerCase().includes(text)));
+  const sort = $('#fSort').value;
+  list.sort((a, b) => sort === 'worn' ? (b.wornCount || 0) - (a.wornCount || 0)
+                    : sort === 'unworn' ? (a.wornCount || 0) - (b.wornCount || 0)
+                    : b.createdAt - a.createdAt);
+  const grid = $('#closetGrid');
+  if (!items.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">まだ服が登録されていません。<br>右下の「＋」から追加するか、<br>設定タブでサンプルを入れて試せます。</div>`;
+  } else if (!list.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">条件に合う服がありません。</div>`;
+  } else {
+    grid.innerHTML = list.map(it => itemCardHTML(it)).join('');
+  }
+  $('#headerCount').textContent = `${items.length}点 / コーデ${outfits.length}件`;
+}
+$('#closetGrid').onclick = e => { const card = e.target.closest('.item'); if (card) showDetail(card.dataset.id); };
+
+// ===== 服の詳細 =====
+function showDetail(id) {
+  const it = items.find(x => x.id === id); if (!it) return;
+  const c = colorOf(it.color);
+  const used = outfits.filter(o => o.itemIds.includes(id));
+  $('#detailBody').innerHTML = `
+    ${it.photo ? `<img class="detail-img" src="${it.photo}" alt="">` : `<div class="photo-box" style="cursor:default;font-size:64px">${catOf(it.category).icon}</div>`}
+    <h2 style="margin-top:14px">${esc(it.name || catOf(it.category).label)}</h2>
+    <dl class="kv">
+      <dt>カテゴリ</dt><dd>${catOf(it.category).label}</dd>
+      <dt>色</dt><dd>${c ? `<span class="dot" style="${dotStyle(c)}"></span> ${c.label}` : '-'}</dd>
+      <dt>季節</dt><dd>${seasonLabel(it.seasons) || '-'}</dd>
+      <dt>ブランド</dt><dd>${esc(it.brand) || '-'}</dd>
+      <dt>着用回数</dt><dd>${it.wornCount || 0}回${it.lastWorn ? `(最後:${new Date(it.lastWorn).toLocaleDateString('ja-JP')})` : ''}</dd>
+      <dt>コーデ</dt><dd>${used.length ? used.map(o => esc(o.name)).join('、') : '-'}</dd>
+      ${it.note ? `<dt>メモ</dt><dd style="white-space:pre-wrap">${esc(it.note)}</dd>` : ''}
+    </dl>
+    <div class="row between">
+      <button class="btn ghost" id="dWorn">今日着た ＋1</button>
+      <span style="display:flex;gap:8px">
+        <button class="btn plain" data-close>閉じる</button>
+        <button class="btn" id="dEdit">編集</button>
+      </span>
+    </div>`;
+  $('#dWorn').onclick = async () => { await markWorn([id]); showDetail(id); toast('着用を記録しました'); };
+  $('#dEdit').onclick = () => { $('#detailModal').classList.remove('open'); openItemForm(id); };
+  openModal('#detailModal');
+}
+async function markWorn(ids) {
+  const now = Date.now();
+  for (const id of ids) {
+    const it = items.find(x => x.id === id); if (!it) continue;
+    it.wornCount = (it.wornCount || 0) + 1; it.lastWorn = now;
+    await put('items', it);
+  }
+  renderAll();
+}
+
+// ===== 服の登録・編集 =====
+let editingItemId = null, pendingPhoto = null;
+const iCat = chipGroup($('#iCat'), CATEGORIES, { value: 'tops', render: o => `${o.icon} ${o.label}` });
+const iColor = chipGroup($('#iColor'), COLORS, { value: null, render: o => `<span class="dot" style="${dotStyle(o)}"></span>${o.label}` });
+const iSeason = chipGroup($('#iSeason'), SEASONS, { multi: true, value: [] });
+
+function setPhotoBox(src) {
+  $('#photoBox').innerHTML = src ? `<img src="${src}" alt="">` : `<span style="font-size:32px">📷</span>タップして写真を選ぶ / 撮る`;
+}
+$('#photoBox').onclick = () => $('#photoInput').click();
+$('#photoInput').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { pendingPhoto = await resizeImage(f); setPhotoBox(pendingPhoto); } catch { toast('画像を読み込めませんでした'); }
+  e.target.value = '';
+};
+function openItemForm(id = null) {
+  editingItemId = id;
+  const it = id ? items.find(x => x.id === id) : null;
+  $('#itemModalTitle').textContent = it ? '服を編集' : '服を登録';
+  pendingPhoto = it?.photo || null; setPhotoBox(pendingPhoto);
+  $('#iName').value = it?.name || ''; $('#iBrand').value = it?.brand || ''; $('#iNote').value = it?.note || '';
+  iCat.set(it?.category || 'tops'); iColor.set(it?.color || null); iSeason.set(it?.seasons || []);
+  $('#iDelete').style.visibility = it ? 'visible' : 'hidden';
+  openModal('#itemModal');
+}
+$('#addBtn').onclick = () => openItemForm();
+$('#iSave').onclick = async () => {
+  const old = editingItemId ? items.find(x => x.id === editingItemId) : null;
+  const it = {
+    ...(old || { id: uid(), createdAt: Date.now(), wornCount: 0 }),
+    name: $('#iName').value.trim(), brand: $('#iBrand').value.trim(), note: $('#iNote').value.trim(),
+    category: iCat.get(), color: iColor.get(), seasons: iSeason.get(), photo: pendingPhoto,
+  };
+  try { await put('items', it); } catch { toast('保存に失敗しました(容量不足の可能性)'); return; }
+  if (old) Object.assign(old, it); else items.push(it);
+  $('#itemModal').classList.remove('open');
+  renderAll(); toast(old ? '更新しました' : '登録しました');
+};
+$('#iDelete').onclick = async () => {
+  if (!editingItemId || !confirm('この服を削除しますか?')) return;
+  await del('items', editingItemId);
+  items = items.filter(x => x.id !== editingItemId);
+  for (const o of outfits) if (o.itemIds.includes(editingItemId)) { o.itemIds = o.itemIds.filter(x => x !== editingItemId); await put('outfits', o); }
+  $('#itemModal').classList.remove('open');
+  renderAll(); toast('削除しました');
+};
+
+// ===== コーデ =====
+function outfitItems(o) { return o.itemIds.map(id => items.find(x => x.id === id)).filter(Boolean); }
+function stripHTML(list) {
+  return `<div class="strip">${list.map(it => `<div class="mini"><div class="ph">${phHTML(it)}</div><div class="n">${esc(it.name || catOf(it.category).label)}</div></div>`).join('')}</div>`;
+}
+function renderOutfits() {
+  const el = $('#outfitList');
+  if (!outfits.length) { el.innerHTML = `<div class="empty">まだコーデがありません。<br>「＋ コーデを作る」か、提案タブから保存できます。</div>`; return; }
+  el.innerHTML = [...outfits].sort((a, b) => b.createdAt - a.createdAt).map(o => `
+    <div class="outfit" data-id="${o.id}">
+      <div class="head">
+        <div><div class="title">${esc(o.name || '無題のコーデ')}</div><div class="tags">${seasonLabel(o.seasons) || '季節指定なし'} · ${outfitItems(o).length}点${o.wornCount ? ` · 着用${o.wornCount}回` : ''}</div></div>
+        <span style="display:flex;gap:6px;flex:none">
+          <button class="btn ghost" data-act="worn" style="padding:7px 12px;font-size:12px">今日着た</button>
+          <button class="btn plain" data-act="edit" style="padding:7px 12px;font-size:12px">編集</button>
+        </span>
+      </div>
+      ${stripHTML(outfitItems(o))}
+    </div>`).join('');
+}
+$('#outfitList').onclick = async e => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const o = outfits.find(x => x.id === b.closest('.outfit').dataset.id);
+  if (b.dataset.act === 'edit') openOutfitForm(o.id);
+  if (b.dataset.act === 'worn') {
+    o.wornCount = (o.wornCount || 0) + 1; await put('outfits', o);
+    await markWorn(o.itemIds); toast('コーデの着用を記録しました');
+  }
+};
+
+let editingOutfitId = null, oSelected = new Set();
+const oSeason = chipGroup($('#oSeason'), SEASONS, { multi: true, value: [] });
+fillSelect($('#oCat'), 'すべてのカテゴリ', CATEGORIES);
+$('#oCat').onchange = renderOutfitPicker;
+function renderOutfitPicker() {
+  const cat = $('#oCat').value;
+  const list = items.filter(it => !cat || it.category === cat);
+  $('#oGrid').innerHTML = list.length ? list.map(it => itemCardHTML(it, { selectable: true, selected: oSelected.has(it.id) })).join('')
+    : `<div class="empty" style="grid-column:1/-1;padding:20px">服がありません</div>`;
+  $('#oCount').textContent = oSelected.size;
+}
+$('#oGrid').onclick = e => {
+  const card = e.target.closest('.item'); if (!card) return;
+  const id = card.dataset.id; oSelected.has(id) ? oSelected.delete(id) : oSelected.add(id);
+  renderOutfitPicker();
+};
+function openOutfitForm(id = null, preset = null) {
+  editingOutfitId = id;
+  const o = id ? outfits.find(x => x.id === id) : preset;
+  $('#outfitModalTitle').textContent = id ? 'コーデを編集' : 'コーデを作る';
+  $('#oName').value = o?.name || ''; oSeason.set(o?.seasons || []);
+  oSelected = new Set(o?.itemIds || []); $('#oCat').value = '';
+  $('#oDelete').style.visibility = id ? 'visible' : 'hidden';
+  renderOutfitPicker(); openModal('#outfitModal');
+}
+$('#newOutfitBtn').onclick = () => openOutfitForm();
+$('#oSave').onclick = async () => {
+  if (!oSelected.size) { toast('服を1点以上選んでください'); return; }
+  const old = editingOutfitId ? outfits.find(x => x.id === editingOutfitId) : null;
+  const o = { ...(old || { id: uid(), createdAt: Date.now(), wornCount: 0 }), name: $('#oName').value.trim(), seasons: oSeason.get(), itemIds: [...oSelected] };
+  await put('outfits', o);
+  if (old) Object.assign(old, o); else outfits.push(o);
+  $('#outfitModal').classList.remove('open'); renderAll(); toast('コーデを保存しました');
+};
+$('#oDelete').onclick = async () => {
+  if (!editingOutfitId || !confirm('このコーデを削除しますか?')) return;
+  await del('outfits', editingOutfitId); outfits = outfits.filter(x => x.id !== editingOutfitId);
+  $('#outfitModal').classList.remove('open'); renderAll(); toast('削除しました');
+};
+
+// ===== 提案 =====
+const sugSeason = chipGroup($('#sugSeason'), SEASONS, { value: currentSeason() });
+const sugOuter = chipGroup($('#sugOuter'), [{ id: 'auto', label: '季節に合わせる' }, { id: 'yes', label: '含める' }, { id: 'no', label: '含めない' }], { value: 'auto' });
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+// 色の相性:ベーシックカラーは何とでも合う。差し色同士は避ける
+function colorOk(chosen, cand) {
+  if (!cand.color || NEUTRALS.includes(cand.color)) return true;
+  const accents = chosen.filter(x => x.color && !NEUTRALS.includes(x.color));
+  return accents.length === 0 || accents.every(x => x.color === cand.color);
+}
+// 着用回数が少ない服を少し優先する
+function weightedPick(list, chosen) {
+  const ok = list.filter(x => colorOk(chosen, x));
+  const pool = ok.length ? ok : list;
+  if (!pool.length) return null;
+  const w = pool.map(x => 1 / (1 + (x.wornCount || 0)));
+  let r = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) return pool[i]; }
+  return pool[pool.length - 1];
+}
+function suggestOne(season, outerMode) {
+  const fit = it => !(it.seasons || []).length || it.seasons.includes(season);
+  const by = cat => items.filter(it => it.category === cat && fit(it));
+  const chosen = [];
+  const tops = by('tops'), bottoms = by('bottoms'), ones = by('onepiece');
+  const useOne = ones.length && (!tops.length || !bottoms.length || Math.random() < 0.3);
+  if (useOne) { chosen.push(weightedPick(ones, chosen)); }
+  else {
+    const t = weightedPick(tops, chosen); if (t) chosen.push(t);
+    const b = weightedPick(bottoms, chosen); if (b) chosen.push(b);
+  }
+  const wantOuter = outerMode === 'yes' || (outerMode === 'auto' && (season === 'winter' || season === 'autumn' || (season === 'spring' && Math.random() < 0.5)));
+  if (wantOuter) { const o = weightedPick(by('outer'), chosen); if (o) chosen.push(o); }
+  for (const cat of ['shoes', 'bag', 'accessory']) {
+    const l = by(cat); if (!l.length) continue;
+    if (cat === 'shoes' || Math.random() < 0.5) { const x = weightedPick(l, chosen); if (x) chosen.push(x); }
+  }
+  return chosen.filter(Boolean);
+}
+$('#suggestBtn').onclick = () => {
+  const season = sugSeason.get(), outerMode = sugOuter.get();
+  const el = $('#suggestResult');
+  const results = [];
+  for (let i = 0; i < 3; i++) results.push(suggestOne(season, outerMode));
+  const valid = results.filter(r => r.length >= 2);
+  if (!valid.length) {
+    el.innerHTML = `<div class="empty">提案できる組み合わせがありません。<br>この季節に合うトップスとボトムス(またはワンピース)を登録してください。</div>`;
+    return;
+  }
+  const sLabel = SEASONS.find(s => s.id === season).label;
+  el.innerHTML = valid.map((r, i) => `
+    <div class="outfit" data-idx="${i}">
+      <div class="head"><div class="title">提案 ${i + 1}</div>
+        <button class="btn ghost" data-save style="padding:7px 12px;font-size:12px">このコーデを保存</button></div>
+      ${stripHTML(r)}
+    </div>`).join('') + `<p class="muted" style="text-align:center">色の相性と、あまり着ていない服を優先して選んでいます。</p>`;
+  el.onclick = e => {
+    const b = e.target.closest('[data-save]'); if (!b) return;
+    const r = valid[+b.closest('.outfit').dataset.idx];
+    openOutfitForm(null, { name: `${sLabel}のコーデ`, seasons: [season], itemIds: r.map(x => x.id) });
+  };
+};
+
+// ===== 設定・統計 =====
+function renderStats() {
+  const unworn = items.filter(it => !it.wornCount).length;
+  $('#stats').innerHTML = `
+    <div class="stat"><b>${items.length}</b><span>服</span></div>
+    <div class="stat"><b>${outfits.length}</b><span>コーデ</span></div>
+    <div class="stat"><b>${unworn}</b><span>未着用</span></div>`;
+}
+$('#exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify({ app: 'my-closet', version: 1, exportedAt: new Date().toISOString(), items, outfits })], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `closet-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!Array.isArray(data.items)) throw new Error();
+    if (!confirm(`服${data.items.length}点・コーデ${(data.outfits || []).length}件を読み込みます。今のデータは置き換えられます。よろしいですか?`)) return;
+    await clear('items'); await clear('outfits');
+    for (const it of data.items) await put('items', it);
+    for (const o of data.outfits || []) await put('outfits', o);
+    await load(); toast('読み込みました');
+  } catch { toast('ファイルを読み込めませんでした'); }
+  e.target.value = '';
+};
+$('#wipeBtn').onclick = async () => {
+  if (!confirm('すべての服とコーデを削除します。元に戻せません。よろしいですか?')) return;
+  await clear('items'); await clear('outfits'); await load(); toast('削除しました');
+};
+$('#sampleBtn').onclick = async () => {
+  const S = (name, category, color, seasons) => ({ id: uid(), createdAt: Date.now() + Math.random(), wornCount: Math.floor(Math.random() * 6), name, category, color, seasons, brand: '', note: '', photo: null });
+  const samples = [
+    S('白Tシャツ', 'tops', 'white', ['spring', 'summer', 'autumn']),
+    S('ネイビーのシャツ', 'tops', 'navy', ['spring', 'autumn']),
+    S('グレーのニット', 'tops', 'gray', ['autumn', 'winter']),
+    S('ボーダーカットソー', 'tops', 'multi', ['spring', 'autumn']),
+    S('デニムパンツ', 'bottoms', 'blue', ['spring', 'summer', 'autumn', 'winter']),
+    S('ベージュのチノパン', 'bottoms', 'beige', ['spring', 'summer', 'autumn']),
+    S('黒のスラックス', 'bottoms', 'black', ['autumn', 'winter', 'spring']),
+    S('リネンワンピース', 'onepiece', 'green', ['summer']),
+    S('トレンチコート', 'outer', 'beige', ['spring', 'autumn']),
+    S('ダウンジャケット', 'outer', 'black', ['winter']),
+    S('白スニーカー', 'shoes', 'white', []),
+    S('茶色のローファー', 'shoes', 'brown', ['spring', 'autumn', 'winter']),
+    S('トートバッグ', 'bag', 'beige', []),
+    S('黒のキャップ', 'accessory', 'black', ['spring', 'summer']),
+  ];
+  for (const s of samples) await put('items', s);
+  await load(); toast('サンプルを14点追加しました');
+};
+
+function renderAll() { renderCloset(); renderOutfits(); renderStats(); }
+
+openDB().then(d => { db = d; return load(); }).catch(() => {
+  document.querySelector('main').innerHTML = '<div class="empty">このブラウザではデータを保存できません。<br>別のブラウザで開くか、プライベートモードを解除してください。</div>';
+});
+</script>
+</body>
+</html>

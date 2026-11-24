@@ -54,7 +54,7 @@
            display: none; align-items: center; justify-content: center; font-size: 14px; }
   .item.selected .check { display: flex; }
   .empty { text-align: center; color: var(--sub); padding: 48px 12px; line-height: 1.8; }
-  .fab { position: fixed; right: 18px; bottom: calc(108px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%; font-size: 28px; padding: 0;
+  .fab { position: fixed; right: 18px; bottom: calc(84px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%; font-size: 28px; padding: 0;
          box-shadow: 0 4px 12px rgba(0,0,0,.2); z-index: 9; }
   .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; z-index: 20; align-items: flex-end; justify-content: center; }
   .modal-bg.open { display: flex; }
@@ -263,7 +263,7 @@
 <script>
 // ===== 更新チェック =====
 // ホーム画面アプリは古い画面を持ち続けることがあるので、開くたびに version.json を確認する
-const APP_VERSION = '202611241348';
+const APP_VERSION = '202611241352';
 async function checkUpdate(manual = false) {
   try {
     const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
